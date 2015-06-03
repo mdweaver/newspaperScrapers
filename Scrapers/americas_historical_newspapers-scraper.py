@@ -6,6 +6,8 @@ from bs4 import BeautifulSoup, SoupStrainer
 import os
 from time import sleep
 from datetime import date, datetime, timedelta
+from pathos.multiprocessing import ProcessingPool as Pool
+import dill
 
 def americas_historical_newspapers_scraper(search_terms, start_date, end_date, filepath):
     #Starting Values
@@ -50,7 +52,7 @@ def americas_historical_newspapers_scraper(search_terms, start_date, end_date, f
         line['publication_title'] = get_article_text(article, "Published as").encode('utf8')
         line['href'] = article.find('a', text=re.compile("View Article"))['href']
         line['publication_id'] = re.search("(?<=:)([^:@]+)(?=@EANX)", line['href']).group(0)
-        line["date.search"] = day
+        line["search_date"] = day
         page_no = article.div.get_text(strip=True)
         page_no = page_no.split(",")[1]
         line['page'] = " ".join(page_no.split()).encode('utf8')
@@ -58,7 +60,7 @@ def americas_historical_newspapers_scraper(search_terms, start_date, end_date, f
         return line
 
     #Scrape function
-    def scrape(search_terms, day):
+    def scrape(search_terms, day, cookie):
         sleep(0.05)
         print day
 
@@ -119,7 +121,8 @@ def americas_historical_newspapers_scraper(search_terms, start_date, end_date, f
             return None
 
 
-    #Complete scraper    
+    #Complete scraper
+    date_list = [str(date) for date in perdelta(start_date, end_date, timedelta(days=1))]    
     #Start session, get cookies
     s = requests.session()
     s.get(stub, allow_redirects=True)
@@ -135,6 +138,6 @@ def americas_historical_newspapers_scraper(search_terms, start_date, end_date, f
         writer.writeheader()
 
         for day in perdelta(start_date, end_date, timedelta(days=1)):
-            results = scrape(search_terms, day)
+            results = scrape(search_terms, day, cookie)
             if results != None:
                 writer.writerows(results)

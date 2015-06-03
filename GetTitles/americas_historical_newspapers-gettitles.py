@@ -47,7 +47,7 @@ stub = "http://infoweb.newsbank.com"
 
 #set dates
 start_date = date(1880, 1, 1)
-end_date = date(1941, 1, 1)
+end_date = date(1881, 1, 1)
 
 #For day in date_list
 date_list = [date for date in perdelta(start_date, end_date, timedelta(days=1))]

@@ -52,11 +52,11 @@ session.post(signin_url, data=signin_form.form_values(), allow_redirects=True)
 #################################
 #Get title list for 1880 to 1940#
 #################################
-query_terms = {"terms":[{"type":"place","values":{"name":"place", "country":"usa", "value":"~none"}},{"type":"date","values":{"name":"year_month_day","start":"1880-01-01","end":"1940-12-31","showMissing":"false"}}]}
+query_terms = {"terms":[{"type":"place","values":{"name":"place", "country":"usa", "value":"~none"}},{"type":"date","values":{"name":"year_month_day","start":"1880-01-01","end":"1880-12-31","showMissing":"false"}}]}
 query_form = {"query_terms":json.dumps(query_terms), "engine":"solr"}
 
-matches = try_function(session.post(get_papers_url, data = query_form, cookies=session.cookies, allow_redirects=True, headers={'referer' : 'http://www.newspapers.com/papers/'}, timeout=(1,60)).text)
-title_list = json.loads(matches)['titleData']
+matches = session.post(get_papers_url, data = query_form, cookies=session.cookies, allow_redirects=True, headers={'referer' : 'http://www.newspapers.com/papers/'}, timeout=(1,60))
+title_list = json.loads(matches.text)['titleData']
 
 
 #############################
@@ -84,7 +84,7 @@ def scrape_day(day):
         return {day : Set()}
 
 start_date = date(1880,1,1)
-end_date = date(1941,1,1)
+end_date = date(1881,1,1)
 date_list = [str(date) for date in perdelta(start_date, end_date, timedelta(days=1))]
 
 
@@ -109,29 +109,35 @@ def scrape_paper(title_id):
             sleep(1.5**wait)
             wait += 1 
     title_soup = BeautifulSoup(title_get, 'html.parser')
-    paper_id = re.search('(?<=#)[^#]+', title_soup.find_all('a', text="Browse")[1]['href']).group(0)
+    try:
+        paper_id = re.search('(?<=#)[^#]+', title_soup.find_all('a', text="Browse")[1]['href']).group(0)
+    except IndexError: 
+        paper_id = None
     #get paper information
-    query = {'docid':paper_id,'type':'surrounding','count':'1'}
-    sleep(0.5) 
-    wait=0
-    while True:
-        try:
-            title_info = session.get(browse_url, params = query, cookies=session.cookies, allow_redirects=True, headers={'referer' : 'http://www.newspapers.com/browse/'}, timeout=(1,60)).text
-            break
-        except:
-            print "... trying again ..."
-            sleep(1.5**wait)
-            wait += 1
-    title_info = json.loads(title_info)['nodes']
-    print title_info[0]['title']
-    #Make data row
-    line = {}
-    line['archive'] = "newspapers_com"
-    line['publication_title'] = title_info[0]['title']
-    line['publication_id'] = title_info[0]['publication']['publicationId']
-    line['location'] = title_info[0]['displayLocation']
-    line['lastUpdated'] = title_info[0]['publication']['lastUpdated']
-    return line
+    if paper_id is not None:
+        query = {'docid':paper_id,'type':'surrounding','count':'1'}
+        sleep(0.5) 
+        wait=0
+        while True:
+            try:
+                title_info = session.get(browse_url, params = query, cookies=session.cookies, allow_redirects=True, headers={'referer' : 'http://www.newspapers.com/browse/'}, timeout=(1,60)).text
+                break
+            except:
+                print "... trying again ..."
+                sleep(1.5**wait)
+                wait += 1
+        title_info = json.loads(title_info)['nodes']
+        print title_info[0]['title']
+        #Make data row
+        line = {}
+        line['archive'] = "newspapers_com"
+        line['publication_title'] = title_info[0]['title']
+        line['publication_id'] = title_info[0]['publication']['publicationId']
+        line['location'] = title_info[0]['displayLocation']
+        line['lastUpdated'] = title_info[0]['publication']['lastUpdated']
+        return line
+    else:
+        return None
 
 #Create data by title
 title_ids = [title['value'] for title in title_list]
@@ -148,11 +154,12 @@ fields = ['archive', 'publication_title', 'publication_id', 'location', 'lastUpd
 
 out = []
 for line in papers_iter:
-    print line['publication_id']
-    title_id = str(line['publication_id'])
-    date_match = {k : int(title_id in title_sets[k]) for k in date_list}
-    line.update(date_match)
-    out.append([line[k] for k in fields])
+    if line is not None:
+        print line['publication_id']
+        title_id = str(line['publication_id'])
+        date_match = {k : int(title_id in title_sets[k]) for k in date_list}
+        line.update(date_match)
+        out.append([line[k] for k in fields])
 
 if len(out) != len(title_ids):
     print "Missing papers!"
