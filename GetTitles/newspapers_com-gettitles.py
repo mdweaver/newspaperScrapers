@@ -84,7 +84,7 @@ def scrape_day(day):
         return {day : Set()}
 
 start_date = date(1880,1,1)
-end_date = date(1881,1,1)
+end_date = date(1941,1,1)
 date_list = [str(date) for date in perdelta(start_date, end_date, timedelta(days=1))]
 
 
