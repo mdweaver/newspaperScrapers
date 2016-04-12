@@ -45,8 +45,8 @@ session = requests.session()
 signin = session.get(signin_url)
 doc = lxml.html.fromstring(signin.text)
 signin_form = doc.forms[0]
-signin_form.fields['username'] = "weaver.michaeld@gmail.com"
-signin_form.fields['password'] = 'usa630'
+signin_form.fields['username'] = "email"
+signin_form.fields['password'] = 'password'
 session.post(signin_url, data=signin_form.form_values(), allow_redirects=True)
 
 #################################
